@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  RECEPTIONIST
+  PATIENT
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  REFUNDED
+  CANCELLED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  role          Role      @default(PATIENT)
+  firstName     String
+  lastName      String
+  phone         String?
+  avatar        String?
+  isActive      Boolean   @default(true)
+  resetToken    String?   @unique
+  resetTokenExp DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  doctor  Doctor?
+  patient Patient?
+
+  @@index([email])
+  @@index([role])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  headDoctor  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  doctors Doctor[]
+
+  @@map("departments")
+}
+
+model Doctor {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  departmentId     String
+  specialization   String
+  qualification    String
+  experience       Int      @default(0)
+  consultationFee  Decimal  @db.Decimal(10, 2)
+  bio              String?  @db.Text
+  licenseNumber    String   @unique
+  availableDays    String   @default("MON,TUE,WED,THU,FRI")
+  startTime        String   @default("09:00")
+  endTime          String   @default("17:00")
+  maxAppointments  Int      @default(20)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department    @relation(fields: [departmentId], references: [id])
+  appointments Appointment[]
+  prescriptions Prescription[]
+
+  @@index([departmentId])
+  @@index([specialization])
+  @@map("doctors")
+}
+
+model Patient {
+  id              String      @id @default(cuid())
+  userId          String      @unique
+  dateOfBirth     DateTime?
+  gender          Gender?
+  bloodGroup      BloodGroup?
+  address         String?
+  emergencyName   String?
+  emergencyPhone  String?
+  emergencyRel    String?
+  allergies       String?     @db.Text
+  medicalHistory  String?     @db.Text
+  insuranceProvider String?
+  insuranceNumber   String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments  Appointment[]
+  prescriptions Prescription[]
+  bills         Bill[]
+
+  @@map("patients")
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  patientId   String
+  doctorId    String
+  scheduledAt DateTime
+  duration    Int               @default(30)
+  status      AppointmentStatus @default(SCHEDULED)
+  type        String            @default("CONSULTATION")
+  reason      String?           @db.Text
+  notes       String?           @db.Text
+  fee         Decimal           @db.Decimal(10, 2)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor       Doctor        @relation(fields: [doctorId], references: [id])
+  prescription Prescription?
+  bill         Bill?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("appointments")
+}
+
+model Prescription {
+  id            String   @id @default(cuid())
+  appointmentId String   @unique
+  patientId     String
+  doctorId      String
+  diagnosis     String   @db.Text
+  symptoms      String?  @db.Text
+  notes         String?  @db.Text
+  followUpDate  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appointment Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient     Patient            @relation(fields: [patientId], references: [id])
+  doctor      Doctor             @relation(fields: [doctorId], references: [id])
+  medications PrescriptionItem[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id             String   @id @default(cuid())
+  prescriptionId String
+  medicineName   String
+  dosage         String
+  frequency      String
+  duration       String
+  instructions   String?
+  createdAt      DateTime @default(now())
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
+  @@map("prescription_items")
+}
+
+model Bill {
+  id            String        @id @default(cuid())
+  appointmentId String        @unique
+  patientId     String
+  billNumber    String        @unique
+  consultFee    Decimal       @db.Decimal(10, 2)
+  medicinesFee  Decimal       @default(0) @db.Decimal(10, 2)
+  labFee        Decimal       @default(0) @db.Decimal(10, 2)
+  otherFee      Decimal       @default(0) @db.Decimal(10, 2)
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  tax           Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(10, 2)
+  status        PaymentStatus @default(PENDING)
+  paymentMethod String?
+  notes         String?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patient     Patient     @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@index([status])
+  @@index([billNumber])
+  @@map("bills")
+}
