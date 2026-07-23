@@ -1,127 +1,116 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
-import { PageHeader, Card, CardContent, Button, Avatar, Badge, Skeleton, EmptyState } from '@/components/ui';
-import { Search, UserPlus, Stethoscope, ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { useAuth } from '@/store/auth';
-import AddDoctorModal from './AddDoctorModal';
+import { PageHeader, Card, CardContent, Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Skeleton, Select } from '@/components/ui';
+import { Plus, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
+import { formatCurrency, formatDate, statusColor } from '@/lib/utils';
+import CreateBillModal from './CreateBillModal';
+import PaymentModal from './PaymentModal';
 
-export default function DoctorsPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [search, setSearch] = useState('');
+export default function BillingPage() {
   const [page, setPage] = useState(1);
-  const [showAdd, setShowAdd] = useState(false);
+  const [status, setStatus] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [payBillId, setPayBillId] = useState<string | null>(null);
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['doctors', page, search],
-    queryFn: () => api.get('/doctors', { params: { page, limit: 12, search: search || undefined } }).then(r => r.data.data),
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['bills', page, status],
+    queryFn: () => api.get('/billing', { params: { page, limit: 10, status: status || undefined } }).then(r => r.data.data),
   });
-
-  // Show raw error for debugging
-  if (error) return (
-    <div className="p-6 bg-red-50 rounded-xl text-red-800">
-      <p className="font-bold mb-2">Error loading doctors:</p>
-      <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(error, null, 2)}</pre>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Doctors"
-        description={`${data?.total ?? 0} medical professionals`}
-        action={user?.role === 'ADMIN' && <Button onClick={() => setShowAdd(true)}><UserPlus className="h-4 w-4" /> Add Doctor</Button>}
+        title="Billing"
+        description={`${data?.total ?? 0} total bills`}
+        action={<Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4" /> Generate Bill</Button>}
       />
 
-      <div className="mb-4 max-w-xs">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            placeholder="Search doctors..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-9 h-9 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
-      </div>
-
-      {/* Debug info */}
-      <div className="p-3 bg-secondary rounded-lg text-xs font-mono">
-        data?.total: {String(data?.total)} | data?.data?.length: {String(data?.data?.length)} | isLoading: {String(isLoading)}
-      </div>
-
-      {isLoading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-56 rounded-xl" />)}
-        </div>
-      ) : (data?.data || []).length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-lg font-semibold">No doctors found</p>
-          <p className="text-muted-foreground mt-1 text-sm">Raw data: {JSON.stringify(data)}</p>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {(data?.data || []).map((doc: {
-            id: string;
-            specialization: string;
-            qualification: string;
-            experience: number;
-            consultationFee: number;
-            availableDays: string;
-            user: { firstName: string; lastName: string; email: string; avatar?: string };
-            department: { name: string };
-          }) => (
-            <Card key={doc.id} className="hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group"
-              onClick={() => navigate(`/doctors/${doc.id}`)}>
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center">
-                  <Avatar name={`${doc.user.firstName} ${doc.user.lastName}`} src={doc.user.avatar} size="lg" />
-                  <h3 className="mt-3 font-semibold text-sm group-hover:text-primary transition-colors">
-                    Dr. {doc.user.firstName} {doc.user.lastName}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{doc.specialization}</p>
-                  <Badge className="mt-2 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs">
-                    {doc.department.name}
-                  </Badge>
-                  <div className="mt-4 w-full space-y-1.5 text-xs text-left border-t pt-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Experience</span>
-                      <span className="font-medium">{doc.experience} yrs</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Fee</span>
-                      <span className="font-medium text-primary">{formatCurrency(doc.consultationFee)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <Stethoscope className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground truncate">{doc.qualification}</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-sm text-muted-foreground">Page {data.page} of {data.totalPages}</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-3">
+            <Select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="w-40">
+              <option value="">All Statuses</option>
+              {['PENDING', 'PAID', 'PARTIAL', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+            </Select>
+            {status && <Button variant="ghost" size="sm" onClick={() => { setStatus(''); setPage(1); }}>Clear</Button>}
           </div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
 
-      <AddDoctorModal open={showAdd} onClose={() => { setShowAdd(false); refetch(); }} />
+      <Card>
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <div className="space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
+          ) : (data?.data || []).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                <DollarSign className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-lg">No bills found</h3>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bill #</TableHead>
+                  <TableHead>Patient</TableHead>
+                  <TableHead className="hidden md:table-cell">Doctor</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="hidden lg:table-cell">Paid</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">Date</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(data?.data || []).map((bill: {
+                  id: string;
+                  billNumber: string;
+                  totalAmount: number;
+                  paidAmount: number;
+                  status: string;
+                  createdAt: string;
+                  patient: { user: { firstName: string; lastName: string } };
+                  appointment: { doctor: { user: { firstName: string; lastName: string } } };
+                }) => (
+                  <TableRow key={bill.id}>
+                    <TableCell className="font-mono text-sm">{bill.billNumber}</TableCell>
+                    <TableCell className="text-sm">{bill.patient.user.firstName} {bill.patient.user.lastName}</TableCell>
+                    <TableCell className="hidden md:table-cell text-sm">
+                      Dr. {bill.appointment.doctor.user.firstName} {bill.appointment.doctor.user.lastName}
+                    </TableCell>
+                    <TableCell className="font-semibold text-sm">{formatCurrency(bill.totalAmount)}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{formatCurrency(bill.paidAmount)}</TableCell>
+                    <TableCell><Badge className={statusColor(bill.status)}>{bill.status}</Badge></TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{formatDate(bill.createdAt)}</TableCell>
+                    <TableCell>
+                      {bill.status !== 'PAID' && bill.status !== 'CANCELLED' && (
+                        <Button size="sm" variant="outline" onClick={() => setPayBillId(bill.id)}>
+                          <DollarSign className="h-3.5 w-3.5" /> Pay
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
+          {data && data.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">Page {data.page} of {data.totalPages}</p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                <Button variant="outline" size="sm" disabled={page === data.totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <CreateBillModal open={showCreate} onClose={() => { setShowCreate(false); refetch(); }} />
+      <PaymentModal billId={payBillId} onClose={() => { setPayBillId(null); refetch(); }} />
     </div>
   );
 }
