@@ -73,17 +73,7 @@ hospital-management-system/
 ├── docker-compose.yml
 └── package.json
 ```
-Required `.env` values:
-```env
-PORT=5000
-DATABASE_URL="mysql://user:password@localhost:3306/hms_db"
-JWT_SECRET="your-long-random-secret"
-JWT_REFRESH_SECRET="another-long-random-secret"
-CLOUDINARY_CLOUD_NAME="..."
-CLOUDINARY_API_KEY="..."
-CLOUDINARY_API_SECRET="..."
-NODE_ENV="development"
-```
+
 ### Default Credentials
 | Role | Email | Password |
 |------|-------|----------|
