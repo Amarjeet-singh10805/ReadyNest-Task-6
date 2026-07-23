@@ -35,44 +35,28 @@ const lastNames  = ['Smith','Jones','Williams','Taylor','Brown','Davies','Evans'
   'Mitchell','Perez','Parker'];
 
 async function main() {
-  console.log('🌱 Seeding database...\n');
+  // Skip if already seeded
+  const existingAdmin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+  if (existingAdmin) {
+    console.log('✅ Database already seeded — skipping');
+    return;
+  }
 
-  // Wipe everything in dependency order
-  await prisma.prescriptionItem.deleteMany();
-  await prisma.prescription.deleteMany();
-  await prisma.bill.deleteMany();
-  await prisma.appointment.deleteMany();
-  await prisma.doctor.deleteMany();
-  await prisma.patient.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.department.deleteMany();
-  console.log('🗑  Cleared existing data\n');
+  console.log('🌱 Seeding database...\n');
 
   const password = await bcrypt.hash('Admin@123', 12);
 
   // Admin
   await prisma.user.create({
-    data: {
-      email: 'admin@hms.com',
-      password,
-      firstName: 'System',
-      lastName: 'Admin',
-      role: 'ADMIN',
-    },
+    data: { email: 'admin@hms.com', password, firstName: 'System', lastName: 'Admin', role: 'ADMIN' },
   });
-  console.log('✅ Admin created  →  admin@hms.com  /  Admin@123');
+  console.log('✅ Admin created');
 
   // Receptionist
   await prisma.user.create({
-    data: {
-      email: 'reception@hms.com',
-      password,
-      firstName: 'Mary',
-      lastName: 'Johnson',
-      role: 'RECEPTIONIST',
-    },
+    data: { email: 'reception@hms.com', password, firstName: 'Mary', lastName: 'Johnson', role: 'RECEPTIONIST' },
   });
-  console.log('✅ Receptionist created  →  reception@hms.com  /  Admin@123');
+  console.log('✅ Receptionist created');
 
   // Departments
   const depts = [];
@@ -80,7 +64,7 @@ async function main() {
     const d = await prisma.department.create({ data: { name } });
     depts.push(d);
   }
-  console.log('✅ Departments created:', depts.map(d => d.name).join(', '));
+  console.log('✅ Departments created');
 
   // Doctors
   const doctors = [];
@@ -115,9 +99,9 @@ async function main() {
     });
 
     doctors.push(doc);
-    console.log(`  ✔ Dr. ${d.firstName} ${d.lastName}  (${d.spec})  →  ${userRecord.email}`);
+    console.log(`  ✔ Dr. ${d.firstName} ${d.lastName}`);
   }
-  console.log(`\n✅ ${doctors.length} Doctors created\n`);
+  console.log(`✅ ${doctors.length} Doctors created`);
 
   // Patients
   const patients = [];
@@ -180,7 +164,6 @@ async function main() {
         duration: 30,
       },
     });
-
     appointments.push(appt);
   }
   console.log(`✅ ${appointments.length} Appointments created`);
@@ -199,20 +182,8 @@ async function main() {
         notes:         'Rest well, avoid stress',
         medications: {
           create: [
-            {
-              medicineName: 'Amlodipine',
-              dosage:       '5mg',
-              frequency:    'Once daily',
-              duration:     '30 days',
-              instructions: 'Take in the morning',
-            },
-            {
-              medicineName: 'Paracetamol',
-              dosage:       '500mg',
-              frequency:    'Twice daily as needed',
-              duration:     '7 days',
-              instructions: 'After meals',
-            },
+            { medicineName: 'Amlodipine',  dosage: '5mg',   frequency: 'Once daily',           duration: '30 days', instructions: 'Take in the morning' },
+            { medicineName: 'Paracetamol', dosage: '500mg', frequency: 'Twice daily as needed', duration: '7 days',  instructions: 'After meals' },
           ],
         },
       },
@@ -249,8 +220,6 @@ async function main() {
   console.log(`✅ ${billCount} Bills created`);
 
   console.log('\n🎉 Seed complete!');
-  console.log('─────────────────────────────────────────────────────');
-  console.log('Role           Email                         Password');
   console.log('─────────────────────────────────────────────────────');
   console.log('Admin          admin@hms.com                 Admin@123');
   console.log('Doctor         james.wilson@hms.com          Admin@123');
