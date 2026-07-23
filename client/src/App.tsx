@@ -21,16 +21,17 @@ import BillingPage from '@/pages/billing/BillingPage';
 import ReportsPage from '@/pages/reports/ReportsPage';
 import ProfilePage from '@/pages/ProfilePage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import { ReactNode } from 'react';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
 
-const ProtectedRoute = ({ children, roles }: { children: JSX.Element; roles?: string[] }) => {
+const ProtectedRoute = ({ children, roles }: { children: ReactNode; roles?: string[] }) => {
   const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (roles && user && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
-  return children;
+  return <>{children}</>;
 };
 
 const DashboardRedirect = () => {
@@ -52,17 +53,33 @@ export default function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+              <Route element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }>
                 <Route path="/dashboard" element={<DashboardRedirect />} />
-                <Route path="/patients" element={<ProtectedRoute roles={['ADMIN','DOCTOR','RECEPTIONIST']}><PatientsPage /></ProtectedRoute>} />
+                <Route path="/patients" element={
+                  <ProtectedRoute roles={['ADMIN', 'DOCTOR', 'RECEPTIONIST']}>
+                    <PatientsPage />
+                  </ProtectedRoute>
+                } />
                 <Route path="/patients/:id" element={<PatientDetailPage />} />
                 <Route path="/doctors" element={<DoctorsPage />} />
                 <Route path="/doctors/:id" element={<DoctorDetailPage />} />
                 <Route path="/appointments" element={<AppointmentsPage />} />
                 <Route path="/appointments/:id" element={<AppointmentDetailPage />} />
                 <Route path="/prescriptions" element={<PrescriptionsPage />} />
-                <Route path="/billing" element={<ProtectedRoute roles={['ADMIN','RECEPTIONIST']}><BillingPage /></ProtectedRoute>} />
-                <Route path="/reports" element={<ProtectedRoute roles={['ADMIN']}><ReportsPage /></ProtectedRoute>} />
+                <Route path="/billing" element={
+                  <ProtectedRoute roles={['ADMIN', 'RECEPTIONIST']}>
+                    <BillingPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/reports" element={
+                  <ProtectedRoute roles={['ADMIN']}>
+                    <ReportsPage />
+                  </ProtectedRoute>
+                } />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
