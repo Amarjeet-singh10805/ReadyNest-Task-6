@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { PageHeader, Card, CardContent, Avatar, Badge, Skeleton, EmptyState, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Button } from '@/components/ui';
+import { PageHeader, Card, CardContent, Avatar, Badge, Skeleton, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Button } from '@/components/ui';
 import { FileText, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import PrescriptionDetailModal from './PrescriptionDetailModal';
@@ -24,7 +24,10 @@ export default function PrescriptionsPage() {
           {isLoading ? (
             <div className="space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
           ) : (data?.data || []).length === 0 ? (
-            <EmptyState title="No prescriptions found" icon={FileText} />
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4 opacity-40" />
+              <h3 className="font-semibold text-lg">No prescriptions found</h3>
+            </div>
           ) : (
             <Table>
               <TableHeader>
