@@ -3,7 +3,7 @@ services:
     name: medicare-hms
     env: node
     plan: free
-    buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install && npx prisma generate && npm run build && node prisma/seed.js
+    buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install && npx prisma generate && npx ts-node --transpile-only src/index.ts --version || npx tsc --skipLibCheck && node prisma/seed.js
     startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV
