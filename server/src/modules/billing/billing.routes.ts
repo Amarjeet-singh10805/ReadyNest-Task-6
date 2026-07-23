@@ -1,99 +1,131 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
 import { sendSuccess, AppError } from '../../utils/response';
-import { authenticate, authorize } from '../../middleware/auth';
+import { authenticate, AuthRequest } from '../../middleware/auth';
 import { z } from 'zod';
 
 const createSchema = z.object({
   appointmentId: z.string(),
   patientId: z.string(),
-  consultFee: z.number(),
-  medicinesFee: z.number().optional(),
-  labFee: z.number().optional(),
-  otherFee: z.number().optional(),
-  discount: z.number().optional(),
-  tax: z.number().optional(),
+  doctorId: z.string(),
+  diagnosis: z.string(),
+  symptoms: z.string().optional(),
   notes: z.string().optional(),
+  followUpDate: z.string().optional(),
+  medications: z.array(z.object({
+    medicineName: z.string(),
+    dosage: z.string(),
+    frequency: z.string(),
+    duration: z.string(),
+    instructions: z.string().optional(),
+  })),
 });
 
-const generateBillNumber = () => `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+export const prescriptionsRouter = Router();
+prescriptionsRouter.use(authenticate);
 
-export const billingRouter = Router();
-billingRouter.use(authenticate);
-
-billingRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
+prescriptionsRouter.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
-    const where: Record<string, unknown> = {};
-    if (req.query.patientId) where.patientId = req.query.patientId;
-    if (req.query.status) where.status = req.query.status;
+    const where: any = {};
+
+    if (req.user?.role === 'DOCTOR') {
+      const doc = await prisma.doctor.findUnique({ where: { userId: req.user.userId } });
+      if (doc) where.doctorId = doc.id;
+    } else if (req.user?.role === 'PATIENT') {
+      const pat = await prisma.patient.findUnique({ where: { userId: req.user.userId } });
+      if (pat) where.patientId = pat.id;
+    } else {
+      if (req.query.patientId) where.patientId = req.query.patientId;
+      if (req.query.doctorId) where.doctorId = req.query.doctorId;
+    }
 
     const [data, total] = await Promise.all([
-      prisma.bill.findMany({
+      prisma.prescription.findMany({
         where,
-        include: { patient: { include: { user: true } }, appointment: { include: { doctor: { include: { user: true } } } } },
+        include: {
+          medications: true,
+          patient: { include: { user: true } },
+          doctor: { include: { user: true } },
+        },
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.bill.count({ where }),
+      prisma.prescription.count({ where }),
     ]);
     sendSuccess(res, { data, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (err) { next(err); }
 });
 
-billingRouter.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+prescriptionsRouter.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const bill = await prisma.bill.findUnique({
+    const p = await prisma.prescription.findUnique({
       where: { id: req.params.id },
-      include: { patient: { include: { user: true } }, appointment: { include: { doctor: { include: { user: true, department: true } }, prescription: { include: { medications: true } } } } },
+      include: {
+        medications: true,
+        patient: { include: { user: true } },
+        doctor: { include: { user: true, department: true } },
+        appointment: true,
+      },
     });
-    if (!bill) throw new AppError('Bill not found', 404);
-    sendSuccess(res, bill);
+    if (!p) throw new AppError('Prescription not found', 404);
+    sendSuccess(res, p);
   } catch (err) { next(err); }
 });
 
-billingRouter.post('/', authorize('ADMIN', 'RECEPTIONIST'), async (req: Request, res: Response, next: NextFunction) => {
+prescriptionsRouter.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = createSchema.parse(req.body);
-    const cf = body.consultFee, mf = body.medicinesFee || 0, lf = body.labFee || 0, of2 = body.otherFee || 0;
-    const discount = body.discount || 0, tax = body.tax || 0;
-    const subtotal = cf + mf + lf + of2;
-    const totalAmount = subtotal - discount + (subtotal * tax / 100);
+    const { medications, followUpDate, ...rest } = body;
 
-    const bill = await prisma.bill.create({
+    const prescription = await prisma.prescription.create({
       data: {
-        ...body,
-        medicinesFee: mf, labFee: lf, otherFee: of2, discount, tax,
-        totalAmount, billNumber: generateBillNumber(),
+        ...rest,
+        followUpDate: followUpDate ? new Date(followUpDate) : null,
+        medications: {
+          create: medications.map(m => ({
+            medicineName: m.medicineName,
+            dosage: m.dosage,
+            frequency: m.frequency,
+            duration: m.duration,
+            instructions: m.instructions,
+          })),
+        },
       },
-      include: { patient: { include: { user: true } } },
+      include: {
+        medications: true,
+        patient: { include: { user: true } },
+        doctor: { include: { user: true } },
+      },
     });
-    sendSuccess(res, bill, 'Bill created', 201);
+    sendSuccess(res, prescription, 'Prescription created', 201);
   } catch (err) { next(err); }
 });
 
-billingRouter.patch('/:id/pay', authorize('ADMIN', 'RECEPTIONIST'), async (req: Request, res: Response, next: NextFunction) => {
+prescriptionsRouter.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { paidAmount, paymentMethod } = req.body;
-    const bill = await prisma.bill.findUnique({ where: { id: req.params.id } });
-    if (!bill) throw new AppError('Bill not found', 404);
-
-    const newPaid = Number(bill.paidAmount) + Number(paidAmount);
-    const status = newPaid >= Number(bill.totalAmount) ? 'PAID' : 'PARTIAL';
-
-    const updated = await prisma.bill.update({
+    const { medications, ...rest } = req.body;
+    const updated = await prisma.prescription.update({
       where: { id: req.params.id },
-      data: { paidAmount: newPaid, status, paymentMethod, paidAt: status === 'PAID' ? new Date() : undefined },
+      data: {
+        ...rest,
+        ...(medications && {
+          medications: {
+            deleteMany: {},
+            create: medications.map((m: any) => ({
+              medicineName: m.medicineName,
+              dosage: m.dosage,
+              frequency: m.frequency,
+              duration: m.duration,
+              instructions: m.instructions,
+            })),
+          },
+        }),
+      },
+      include: { medications: true },
     });
-    sendSuccess(res, updated, 'Payment recorded');
-  } catch (err) { next(err); }
-});
-
-billingRouter.get('/stats/revenue', authorize('ADMIN'), async (_req: Request, res: Response, next: NextFunction) => {
-  try {
-    const result = await prisma.bill.aggregate({ _sum: { totalAmount: true, paidAmount: true }, where: { status: 'PAID' } });
-    sendSuccess(res, result._sum);
+    sendSuccess(res, updated, 'Prescription updated');
   } catch (err) { next(err); }
 });
