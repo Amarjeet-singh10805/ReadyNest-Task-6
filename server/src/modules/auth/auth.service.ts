@@ -4,7 +4,6 @@ import { authRepository } from './auth.repository';
 import { RegisterInput, LoginInput } from './auth.validation';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../utils/jwt';
 import { AppError } from '../../utils/response';
-import { Role } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 
 export const authService = {
@@ -14,17 +13,18 @@ export const authService = {
 
     const hashed = await bcrypt.hash(input.password, 12);
     const user = await authRepository.create({
-      ...input,
+      email: input.email,
       password: hashed,
-      role: (input.role as Role) || 'PATIENT',
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone: input.phone,
+      role: (input.role as any) || 'PATIENT',
     });
 
-    // Auto-create patient profile if role is PATIENT
     if (user.role === 'PATIENT') {
       await prisma.patient.create({ data: { userId: user.id } });
     }
 
-    // Auto-create doctor profile skeleton if role is DOCTOR (shouldn't happen via register but just in case)
     const payload = { userId: user.id, role: user.role, email: user.email };
     return {
       user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
@@ -40,7 +40,6 @@ export const authService = {
     const valid = await bcrypt.compare(input.password, user.password);
     if (!valid) throw new AppError('Invalid credentials', 401);
 
-    // Auto-create patient profile if missing
     if (user.role === 'PATIENT') {
       const existing = await prisma.patient.findUnique({ where: { userId: user.id } });
       if (!existing) await prisma.patient.create({ data: { userId: user.id } });
