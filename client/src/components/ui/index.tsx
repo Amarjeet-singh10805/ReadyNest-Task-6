@@ -3,16 +3,16 @@ import { ReactNode, InputHTMLAttributes, SelectHTMLAttributes, forwardRef } from
 import { Loader2 } from 'lucide-react';
 
 // Card
-export const Card = ({ className, children }: { className?: string; children: ReactNode }) => (
-  <div className={cn('rounded-xl border bg-card text-card-foreground shadow-sm', className)}>{children}</div>
+export const Card = ({ className, children, onClick }: { className?: string; children?: ReactNode; onClick?: () => void }) => (
+  <div className={cn('rounded-xl border bg-card text-card-foreground shadow-sm', className)} onClick={onClick}>{children}</div>
 );
-export const CardHeader = ({ className, children }: { className?: string; children: ReactNode }) => (
+export const CardHeader = ({ className, children }: { className?: string; children?: ReactNode }) => (
   <div className={cn('flex flex-col space-y-1.5 p-6', className)}>{children}</div>
 );
-export const CardTitle = ({ className, children }: { className?: string; children: ReactNode }) => (
+export const CardTitle = ({ className, children }: { className?: string; children?: ReactNode }) => (
   <h3 className={cn('font-semibold leading-none tracking-tight', className)}>{children}</h3>
 );
-export const CardContent = ({ className, children }: { className?: string; children: ReactNode }) => (
+export const CardContent = ({ className, children }: { className?: string; children?: ReactNode }) => (
   <div className={cn('p-6 pt-0', className)}>{children}</div>
 );
 
@@ -21,7 +21,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'default' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg' | 'icon';
   loading?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'default', size = 'md', loading, children, disabled, ...props }, ref) => {
@@ -48,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = 'Button';
 
 // Badge
-export const Badge = ({ children, className }: { children: ReactNode; className?: string }) => (
+export const Badge = ({ children, className }: { children?: ReactNode; className?: string }) => (
   <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', className)}>{children}</span>
 );
 
@@ -91,20 +91,20 @@ export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
 Textarea.displayName = 'Textarea';
 
 // Table
-export const Table = ({ children, className }: { children: ReactNode; className?: string }) => (
+export const Table = ({ children, className }: { children?: ReactNode; className?: string }) => (
   <div className="relative w-full overflow-auto">
     <table className={cn('w-full caption-bottom text-sm', className)}>{children}</table>
   </div>
 );
-export const TableHeader = ({ children }: { children: ReactNode }) => <thead className="[&_tr]:border-b">{children}</thead>;
-export const TableBody = ({ children }: { children: ReactNode }) => <tbody className="[&_tr:last-child]:border-0">{children}</tbody>;
-export const TableRow = ({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) => (
-  <tr className={cn('border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', onClick && 'cursor-pointer', className)} onClick={onClick}>{children}</tr>
+export const TableHeader = ({ children }: { children?: ReactNode }) => <thead className="[&_tr]:border-b">{children}</thead>;
+export const TableBody = ({ children }: { children?: ReactNode }) => <tbody className="[&_tr:last-child]:border-0">{children}</tbody>;
+export const TableRow = ({ children, className, onClick }: { children?: ReactNode; className?: string; onClick?: () => void }) => (
+  <tr className={cn('border-b transition-colors hover:bg-muted/50', onClick && 'cursor-pointer', className)} onClick={onClick}>{children}</tr>
 );
-export const TableHead = ({ children, className }: { children: ReactNode; className?: string }) => (
+export const TableHead = ({ children, className }: { children?: ReactNode; className?: string }) => (
   <th className={cn('h-10 px-4 text-left align-middle font-medium text-muted-foreground', className)}>{children}</th>
 );
-export const TableCell = ({ children, className }: { children: ReactNode; className?: string }) => (
+export const TableCell = ({ children, className }: { children?: ReactNode; className?: string }) => (
   <td className={cn('p-4 align-middle', className)}>{children}</td>
 );
 
@@ -114,7 +114,7 @@ export const Avatar = ({ src, name, size = 'md' }: { src?: string; name: string;
   const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   return src
     ? <img src={src} alt={name} className={cn('rounded-full object-cover', sizes[size])} />
-    : <div className={cn('rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center', sizes[size])}>{initials}</div>;
+    : <div className={cn('rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center shrink-0', sizes[size])}>{initials}</div>;
 };
 
 // Spinner
@@ -158,7 +158,7 @@ export const StatCard = ({ title, value, icon: Icon, trend, color = 'blue' }: {
             <p className="text-2xl font-bold mt-1">{value}</p>
             {trend && <p className="text-xs text-muted-foreground mt-1">{trend}</p>}
           </div>
-          <div className={cn('h-12 w-12 rounded-xl flex items-center justify-center', colors[color] || colors.blue)}>
+          <div className={cn('h-12 w-12 rounded-xl flex items-center justify-center shrink-0', colors[color] || colors.blue)}>
             <Icon className="h-6 w-6" />
           </div>
         </div>
@@ -178,8 +178,8 @@ export const PageHeader = ({ title, description, action }: { title: string; desc
   </div>
 );
 
-// Modal / Dialog
-export const Modal = ({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) => {
+// Modal
+export const Modal = ({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children?: ReactNode }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -187,7 +187,7 @@ export const Modal = ({ open, onClose, title, children }: { open: boolean; onClo
       <div className="relative z-50 w-full max-w-lg mx-4 rounded-xl bg-card border shadow-xl animate-fade-in max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none">✕</button>
         </div>
         <div className="p-6">{children}</div>
       </div>
