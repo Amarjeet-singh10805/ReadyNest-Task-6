@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { PageHeader, Card, CardContent, Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Skeleton, EmptyState, Select } from '@/components/ui';
+import { PageHeader, Card, CardContent, Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Skeleton, Select } from '@/components/ui';
 import { Plus, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
 import { formatCurrency, formatDate, statusColor } from '@/lib/utils';
 import CreateBillModal from './CreateBillModal';
@@ -43,7 +43,12 @@ export default function BillingPage() {
           {isLoading ? (
             <div className="space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div>
           ) : (data?.data || []).length === 0 ? (
-            <EmptyState title="No bills found" />
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                <DollarSign className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-lg">No bills found</h3>
+            </div>
           ) : (
             <Table>
               <TableHeader>
