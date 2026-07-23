@@ -69,8 +69,6 @@ hospital-management-system/
 │   │   └── seed.ts
 │   └── package.json
 ├── render.yaml
-├── Dockerfile
-├── docker-compose.yml
 └── package.json
 ```
 
